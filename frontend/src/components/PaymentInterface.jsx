@@ -242,8 +242,9 @@ const PaymentInterface = () => {
           // 2. Activate enrollment after successful payment
           if (enrollmentId && paymentRes.data._id) {
             try {
+              const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
               await axios.post(
-                `/api/enrollments/activate/${enrollmentId}`,
+                `${API_BASE}/api/enrollments/activate/${enrollmentId}`,
                 { paymentId: paymentRes.data._id },
                 { headers: { Authorization: `Bearer ${token}` } }
               );

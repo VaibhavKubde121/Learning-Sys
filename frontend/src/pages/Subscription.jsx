@@ -4,6 +4,7 @@ import "../assets/Subscription.css";
 import AppLayout from "../components/AppLayout";
 import { useNavigate } from "react-router-dom"; // <-- Added
 import axios from "axios";
+import { api, API_BASE } from "../lib/api";
 
 // Default Courses Data (used as fallback when backend not available)
 const initialCourses = [
@@ -425,7 +426,7 @@ function CourseDetail({ course, onBack }) {
         }
 
         const courseIdToUse = course._id || course.id;
-        const enrollmentRes = await axios.post(
+        const enrollmentRes = await api.post(
           '/api/enrollments/create',
           { courseId: courseIdToUse },
           { headers: { Authorization: `Bearer ${token}` } }

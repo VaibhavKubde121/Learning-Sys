@@ -1603,7 +1603,8 @@ export default function Courses() {
       }
 
       // Create pending enrollment
-      const response = await fetch('/api/enrollments/create', {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${API_BASE}/api/enrollments/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

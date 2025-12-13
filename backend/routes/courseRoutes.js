@@ -17,6 +17,12 @@ router.route('/')
     .get(getCourses)
     .post(protect, createCourse);
 
+// Admin-only delete all courses
+router.delete('/all', protect, (req, res, next) => {
+    // authorize middleware is optionally available; perform role check in controller
+    next();
+}, require('../controllers/courseController').deleteAllCourses);
+
 router.route('/:id')
     .get(getCourseById)
     .put(protect, updateCourse)

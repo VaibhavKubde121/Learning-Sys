@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import AppLayout from "../components/AppLayout";
 import SmallChatBox from "../components/SmallChatBox";
+import avatarFemale from "../assets/avatar-female.svg";
+import profileAvatar from "../assets/profile.png";
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 import {
@@ -31,14 +33,15 @@ export default function Profile() {
   const [loadingCertCourseId, setLoadingCertCourseId] = useState(null);
 
   const [profile, setProfile] = useState({
-    initials: "DK",
-    name: "Deepak Kumar",
+    initials: "",
+    name: "",
     badge: "Premium Member",
     bio: "Passionate learner exploring web development and computer science. On a mission to master full-stack development!",
-    email: "deepak@example.com",
+    email: "",
     phone: "+91 ",
-    location: "Mumbai, India",
+    location: "",
     joined: " ",
+    gender: "",
     avatar: null,
     stats: {
       courses: 0,
@@ -81,8 +84,9 @@ export default function Profile() {
             phone: profileRes.phone || prev.phone,
             location: profileRes.location || prev.location,
             bio: profileRes.bio || prev.bio,
+            gender: profileRes.gender || prev.gender,
             avatar: profileRes.avatar || null,
-            initials: (profileRes.fullName || prev.name)
+            initials: ((profileRes.fullName || prev.name) + "")
               .split(" ")
               .map((n) => n[0])
               .slice(0, 2)
@@ -273,7 +277,8 @@ export default function Profile() {
         phone: profile.phone,
         location: profile.location,
         bio: profile.bio,
-      };
+        gender: profile.gender,
+      }; 
 
       const updated = await api.updateProfile(payload);
 
@@ -314,7 +319,23 @@ export default function Profile() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                 />
               ) : (
-                profile.initials
+                (profile.gender === 'female') ? (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+                    <img 
+                      src={avatarFemale} 
+                      alt="female avatar"
+                      style={{ width: '90%', height: '90%' }}
+                    />
+                  </div>
+                ) : (profile.gender === 'male') ? (
+                  <img
+                    src={profileAvatar}
+                    alt="male avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                  />
+                ) : (
+                  profile.initials
+                )
               )}
             </div>
 
@@ -585,14 +606,24 @@ export default function Profile() {
         placeholder="Email"
       />
 
-      <input
-        type="text"
-        name="phone"
-        value={profile.phone}
-        onChange={handleChange}
-        placeholder="Phone"
-        inputMode="numeric"
-      />
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <input
+          type="text"
+          name="phone"
+          value={profile.phone}
+          onChange={handleChange}
+          placeholder="Phone"
+          inputMode="numeric"
+          style={{ flex: 1 }}
+        />
+
+        <select name="gender" value={profile.gender} onChange={handleChange} style={{ flex: 1 }}>
+          <option value="">Select Gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
 
       <input
         type="text"

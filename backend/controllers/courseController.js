@@ -147,6 +147,31 @@ exports.deleteCourse = async (req, res) => {
     }
 };
 
+// @desc    Delete ALL courses (admin only)
+// @route   DELETE /api/courses/all
+// @access  Private/Admin
+exports.deleteAllCourses = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        // Remove all course documents, lessons, and enrollments
+        const Enrollment = require('../models/enrollmentModel');
+        await Lesson.deleteMany({});
+        await Course.deleteMany({});
+        await Enrollment.deleteMany({});
+
+        // Clear enrolledCourses array on all users
+        const User = require('../models/userModel');
+        await User.updateMany({}, { $set: { enrolledCourses: [] } });
+
+        res.json({ message: 'All courses, lessons and enrollments removed' });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
 // @desc    Enroll in course
 // @route   POST /api/courses/:id/enroll
 // @access  Private/Student

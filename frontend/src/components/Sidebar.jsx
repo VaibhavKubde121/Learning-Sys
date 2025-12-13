@@ -78,6 +78,11 @@ function Sidebar({ isOpen, setIsOpen }) {
   ];
 
   const handleLogout = () => {
+    // Clear session data
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("userRole");
+    sessionStorage.removeItem("isFirstLogin");
     navigate("/"); // Redirect to login page
   };
 

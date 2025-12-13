@@ -6,7 +6,8 @@ const {
     activateEnrollment,
     getEnrollmentStatus,
     getUserEnrollments,
-    updateEnrollment
+    updateEnrollment,
+    unenrollAll
 } = require('../controllers/enrollmentController');
 
 // All enrollment routes require authentication
@@ -14,6 +15,9 @@ router.use(protect);
 
 // Get user's enrollments
 router.get('/', getUserEnrollments);
+
+// Unenroll from all courses (current user)
+router.post('/unenroll-all', unenrollAll);
 
 // Create pending enrollment (before payment)
 router.post('/create', createEnrollment);

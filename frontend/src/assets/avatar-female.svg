@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <style>
+      .avatar-bg { fill: #3B9DD9; }
+      .avatar-head { fill: #D4A574; }
+      .avatar-hair { fill: #1a1a3e; }
+      .avatar-shirt { fill: #E8E8F0; }
+      .avatar-feature { fill: #000; }
+      .avatar-mouth { stroke: #C67C4E; stroke-width: 2; fill: none; stroke-linecap: round; }
+    </style>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" class="avatar-bg"/>
+  
+  <!-- Head -->
+  <circle cx="100" cy="70" r="35" class="avatar-head"/>
+  
+  <!-- Hair -->
+  <path d="M 65 70 Q 65 35 100 35 Q 135 35 135 70 L 130 90 Q 130 95 125 95 L 75 95 Q 70 95 70 90 Z" class="avatar-hair"/>
+  
+  <!-- Eyes -->
+  <circle cx="90" cy="65" r="4" class="avatar-feature"/>
+  <circle cx="110" cy="65" r="4" class="avatar-feature"/>
+  
+  <!-- Eye shine -->
+  <circle cx="91" cy="64" r="1.5" fill="#fff"/>
+  <circle cx="111" cy="64" r="1.5" fill="#fff"/>
+  
+  <!-- Nose -->
+  <path d="M 100 70 L 98 80" stroke="#C89968" stroke-width="1.5" fill="none"/>
+  
+  <!-- Mouth smile -->
+  <path d="M 92 85 Q 100 90 108 85" class="avatar-mouth"/>
+  
+  <!-- Body/Shirt -->
+  <ellipse cx="100" cy="140" rx="45" ry="50" class="avatar-shirt"/>
+  
+  <!-- Neck bridge -->
+  <rect x="92" y="95" width="16" height="12" class="avatar-head"/>
+</svg>

@@ -38,6 +38,19 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.highlighted-reminder {
+  animation: highlightPulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.08);
+  border-left-color: #2563eb;
+  border: 2px solid rgba(37,99,235,0.12);
+}
+
+@keyframes highlightPulse {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
 .schedule-badge {
   padding: 4px 12px;
   border-radius: 6px;

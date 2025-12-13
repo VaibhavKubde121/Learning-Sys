@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import StatCard from "../components/StatCard";
 import { LuAward, LuBookOpen, LuClock4 } from "react-icons/lu";
 import { FaBell } from "react-icons/fa";
@@ -10,6 +11,7 @@ import ChatBox from "../components/ChatBox"; // ✅ Import ChatBox
 import "../assets/dashboard.css";
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [activeVideo, setActiveVideo] = useState(null);
   const [openChat, setOpenChat] = useState(false); // ✅ Chat state
   const [user, setUser] = useState(null);
@@ -24,7 +26,6 @@ function Dashboard() {
   const [enrolledCourses, setEnrolledCourses] = useState([]); // Fetch enrolled courses from backend
   const coursesContainerRef = useRef(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [coursesExpanded, setCoursesExpanded] = useState(false);
 
   // ANNOUNCEMENTS
   const [announcements] = useState([
@@ -43,13 +44,27 @@ function Dashboard() {
 
   // ✅ Greeting passed to Header from Dashboard ONLY
   const firstName = user?.fullName ? user.fullName.split(' ')[0] : (user?.email ? user.email.split('@')[0] : 'User');
+  // Check if user is new: check sessionStorage first (from login response), then user object, then enrolled courses
+  const getIsFirstLogin = () => {
+    try {
+      const sessionFirstLogin = sessionStorage.getItem("isFirstLogin");
+      if (sessionFirstLogin !== null) {
+        return JSON.parse(sessionFirstLogin) === true;
+      }
+    } catch (e) {
+      console.warn('Could not read isFirstLogin from sessionStorage', e);
+    }
+    // Fallback: check user object or if they have no enrolled courses
+    return user?.isFirstLogin === true || (enrolledCourses.length === 0 && totalCourses === 0);
+  };
+  const isNewUser = getIsFirstLogin();
   const greeting = (
     <div>
       <h1 className="mb-1" style={{ color: "#1A365D", fontSize: "1.3rem" }}>
         Hello, {firstName}
       </h1>
       <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: "400", color: "#758096" }}>
-        Welcome back to your learning journey!
+        {isNewUser ? "Welcome to your learning journey" : "Welcome back to your learning journey"}
       </p>
     </div>
   );
@@ -71,6 +86,47 @@ function Dashboard() {
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           setUser(profileData);
+          try {
+            localStorage.setItem('user', JSON.stringify(profileData));
+            window.dispatchEvent(new Event('userUpdated'));
+          } catch (e) {
+            console.warn('Could not save user to localStorage', e);
+          }
+        }
+
+        // Fetch reminders from backend notifications
+        try {
+          const notificationsRes = await fetch('/api/notifications', {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            }
+          });
+          if (notificationsRes.ok) {
+            const notificationsData = await notificationsRes.json();
+            const notifications = notificationsData.notifications || notificationsData || [];
+            
+            // Extract reminder event titles and set them in state
+            const remindersMap = {};
+            notifications.forEach(notif => {
+              try {
+                // Extract from route if it contains eventTitle parameter
+                if (notif.route && typeof notif.route === 'string') {
+                  const match = notif.route.match(/eventTitle=([^&]*)/);
+                  if (match && match[1]) {
+                    const eventTitle = decodeURIComponent(match[1]);
+                    remindersMap[eventTitle] = true;
+                  }
+                }
+              } catch (err) {
+                console.warn('Error processing notification:', err);
+              }
+            });
+            
+            setReminders(remindersMap);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch reminders:', err);
         }
 
         // Fetch user's enrolled courses count and hours learned
@@ -188,25 +244,6 @@ function Dashboard() {
     loadProfile();
   }, []);
 
-  // Measure if the courses list overflows the visible container so we can show/hide "View All"
-  useLayoutEffect(() => {
-    const el = coursesContainerRef.current;
-    if (!el) {
-      setIsOverflowing(false);
-      return;
-    }
-
-    const checkOverflow = () => {
-      // If the scroll height is greater than client height the content is overflowing
-      setIsOverflowing(el.scrollHeight > el.clientHeight);
-    };
-
-    // Run initially and on resize
-    checkOverflow();
-    window.addEventListener('resize', checkOverflow);
-    return () => window.removeEventListener('resize', checkOverflow);
-  }, [enrolledCourses, coursesExpanded]);
-
   // ✅ Handle setting reminder for upcoming class
   const handleSetReminder = async (classTitle, classDate) => {
     try {
@@ -238,21 +275,18 @@ function Dashboard() {
           [classTitle]: true
         }));
 
-        // If backend attempted to send email, show appropriate message
-        if (data?.reminder?.reminded) {
-          alert(`Reminder set for ${classTitle} — an email has been sent to your registered address.`);
-        } else if (data?.emailResult) {
-          // SendGrid may return an array/result; assume success if present
-          alert(`Reminder set for ${classTitle} — email send attempted.`);
-        } else {
-          alert(`Reminder set for ${classTitle}. Email not sent (no email configured).`);
-        }
+        // Dispatch event so Schedule page refreshes reminders
+        window.dispatchEvent(new Event('reminderSet'));
+
+        // Show success message
+        alert(`✅ Reminder set for ${classTitle} — You will be notified before the class.`);
       } else {
-        alert('Failed to set reminder. Please try again.');
+        const errData = await reminderRes.json();
+        alert(errData.message || 'Failed to set reminder. Please try again.');
       }
     } catch (err) {
       console.warn('Error setting reminder:', err);
-      alert('Error setting reminder');
+      alert('Error setting reminder: ' + err.message);
     }
   };
 
@@ -284,26 +318,22 @@ function Dashboard() {
           <div className="card" style={{ borderRadius: "15px", height: "295px" }}>
             <div className="card-header bg-white" style={{ borderColor: "white" }}>
               <h3 className="fw-normal">Your Courses</h3>
-              {/* Show View All only when there are enrolled courses and the list overflows the visible area */}
-              {enrolledCourses && enrolledCourses.length > 0 && isOverflowing && (
+              {/* Show View More Courses button only when there are 2+ enrolled courses */}
+              {enrolledCourses && enrolledCourses.length >= 2 && (
                 <button
                   className="view-btn"
-                  onClick={() => setCoursesExpanded(prev => !prev)}
+                  onClick={() => navigate('/courses')}
                 >
-                  {coursesExpanded ? 'Show Less' : 'View All'}
+                  View More Courses
                 </button>
               )}
             </div>
             {enrolledCourses && enrolledCourses.length > 0 ? (
-              // Wrap the list in a container we can measure for overflow and collapse/expand
               <div
                 ref={coursesContainerRef}
                 className="courses-list"
                 style={{
-                  overflow: 'hidden',
-                  transition: 'max-height 0.3s ease',
-                  // when expanded allow large height, when collapsed limit height so only visible items fit
-                  maxHeight: coursesExpanded ? '1000px' : '190px'
+                  overflow: 'hidden'
                 }}
               >
                 {enrolledCourses.map((course) => (

@@ -67,6 +67,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     phone: { type: String },
+    gender: { type: String, enum: ['male', 'female', 'other'], default: null },
     bio: { type: String },
     location: { type: String },
     address: {
@@ -100,6 +101,9 @@ const userSchema = new mongoose.Schema(
 
     // Per-course enrollment + completion progress for students
     enrolledCourses: [enrolledCourseSchema],
+    
+    // Track if this is user's first login
+    firstLogin: { type: Boolean, default: true },
   },
   {
     timestamps: true,

@@ -137,6 +137,44 @@ export async function aiQuery(courseId, query) {
   return res.json();
 }
 
+// ===== Notifications =====
+
+export async function getNotifications(limit = 20, page = 1) {
+  const res = await fetch(`${BASE}/notifications?limit=${limit}&page=${page}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function getUnreadNotificationCount() {
+  const res = await fetch(`${BASE}/notifications/count/unread`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function markNotificationAsRead(notificationId) {
+  const res = await fetch(`${BASE}/notifications/${notificationId}/read`, { method: 'PATCH', headers: authHeaders() });
+  return res.json();
+}
+
+export async function markAllNotificationsAsRead() {
+  const res = await fetch(`${BASE}/notifications/read/all`, { method: 'PATCH', headers: authHeaders() });
+  return res.json();
+}
+
+export async function deleteNotification(notificationId) {
+  const res = await fetch(`${BASE}/notifications/${notificationId}`, { method: 'DELETE', headers: authHeaders() });
+  return res.json();
+}
+
+export async function deleteAllNotifications() {
+  const res = await fetch(`${BASE}/notifications/all`, { method: 'DELETE', headers: authHeaders() });
+  return res.json();
+}
+
+// ===== Schedule / Upcoming Classes =====
+export async function getUpcomingClasses(limit = 20, page = 1) {
+  const res = await fetch(`${BASE}/schedule/upcoming?limit=${limit}&page=${page}`, { headers: authHeaders() });
+  return res.json();
+}
+
 export default {
   getCourses,
   createCourse,
@@ -154,4 +192,5 @@ export default {
   uploadProfilePhoto,
   updateProfile,
   getStreak
+  ,getUpcomingClasses
 };

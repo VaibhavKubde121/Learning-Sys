@@ -1,4 +1,5 @@
 import { useState, useMemo,useEffect } from "react";
+import { useLocation } from 'react-router-dom';
 import SmallChatBox from "../components/SmallChatBox";
 import { Calendar, Bell } from "lucide-react";
 import "../assets/schedule.css";
@@ -18,7 +19,7 @@ function AddEventModal({ isOpen, onClose, onAdd, userRole, presetDate }) {
   const [instructors, setInstructors] = useState([]);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
   const [instructorsError, setInstructorsError] = useState(null);
- 
+
   useEffect(() => {
     if (presetDate) {
       // presetDate is a Date object
@@ -42,12 +43,12 @@ function AddEventModal({ isOpen, onClose, onAdd, userRole, presetDate }) {
       }
     })();
   }, [presetDate, isOpen]);
- 
+
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }
- 
+
   function handleSubmit(e) {
     e.preventDefault();
     // client-side validation
@@ -62,7 +63,7 @@ function AddEventModal({ isOpen, onClose, onAdd, userRole, presetDate }) {
         return;
       }
     }
- 
+
     // Prevent past dates (client-side)
     const selected = new Date(form.date);
     const today = new Date();
@@ -260,56 +261,22 @@ function AddEventModal({ isOpen, onClose, onAdd, userRole, presetDate }) {
 }
  
 function Schedule() {
-  const initialClasses = [
-    {
-      title: "Advanced Mathematics",
-      instructor: "Dr. Sarah Smith",
-      date: "January 20, 2026",
-      time: "1:00 PM - 2:30 PM",
-      location: "Virtual Room 1",
-      students: "45 students",
-      type: "Live Class",
-    },
-    {
-      title: "Physics Laboratory",
-      instructor: "Prof. Michael Johnson",
-      date: "January 21, 2026",
-      time: "10:00 AM - 11:30 AM",
-      location: "Virtual Lab 3",
-      students: "30 students",
-      type: "Lab Session",
-    },
-    {
-      title: "Chemistry Fundamentals",
-      instructor: "Dr. Emily Williams",
-      date: "January 22, 2026",
-      time: "2:00 PM - 3:30 PM",
-      location: "Virtual Room 2",
-      students: "52 students",
-      type: "Live Class",
-    },
-    {
-      title: "Web Development Workshop",
-      instructor: "John Davis",
-      date: "January 23, 2026",
-      time: "3:00 PM - 5:00 PM",
-      location: "Virtual Workshop Hall",
-      students: "38 students",
-      type: "Workshop",
-    },
-  ];
- 
-  const [classes, setClasses] = useState(initialClasses);
+  // For privacy, start with no events shown — users see only their own events
+  const [classes, setClasses] = useState([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSmallChatOpen, setIsSmallChatOpen] = useState(false);
   const [userRole, setUserRole] = useState(() => localStorage.getItem('userRole') || 'student');
   const [presetDate, setPresetDate] = useState(null);
   const [remindersSet, setRemindersSet] = useState(new Set());
+  const location = useLocation();
+  const [highlightEventTitle, setHighlightEventTitle] = useState(null);
   const [selectedDateEvents, setSelectedDateEvents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [userProfile, setUserProfile] = useState(null);
   const [weeklyStats, setWeeklyStats] = useState({ attended: 0, studyHours: 0, upcoming: 0 });
   const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [upcomingClasses, setUpcomingClasses] = useState([]);
 
   // Define weekStart early so it's available for effects
   const weekStart = useMemo(() => {
@@ -322,45 +289,30 @@ function Schedule() {
     return start;
   }, [currentDate]);
  
-  // Load events from backend if available
-  useEffect(() => {
-    (async () => {
-      try {
-        const api = await import("../api");
-        const res = await api.getEvents();
-        if (Array.isArray(res)) {
-          const mapped = res.map((e) => ({
-            title: e.title,
-            instructor: e.instructor && (e.instructor.fullName || e.instructor.email) || "TBD",
-            date: e.date ? new Date(e.date).toLocaleDateString() : 'TBD',
-            time: `${e.startTime || 'TBD'} - ${e.endTime || 'TBD'}`,
-            location: e.location || 'Online',
-            students: (e.enrolledStudents || []).length + ' students',
-            type: e.type || 'Live Class',
-            status: e.status || 'Scheduled',
-            _id: e._id
-          }));
-          setClasses((prev) => [...mapped, ...prev]);
-        }
-      } catch (err) {
-        console.warn('Failed to load events from API', err.message || err);
-      }
-    })();
-  }, []);
+  // Do not load global events — users should only see their own events.
+  // (Global loader removed for privacy; upcomingClasses and selectedDateEvents
+  // are fetched per-user below.)
  
-  // Fetch events for today on component mount
+  // Fetch events for the selected date, but only include events related to the current user
   useEffect(() => {
     (async () => {
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0];
       setSelectedDate(today);
-     
+
       try {
         const api = await import("../api");
         const events = await api.getEventsByDate(dateStr);
-        if (Array.isArray(events)) {
-          // Transform backend events to match the display format
-          const transformed = events.map((e) => ({
+        if (Array.isArray(events) && userProfile && userProfile._id) {
+          // Filter events to those where the user is the instructor or is enrolled
+          const uid = userProfile._id;
+          const filtered = events.filter(e => {
+            const instr = e.instructor && (e.instructor._id || e.instructor) ? (e.instructor._id || e.instructor) : null;
+            const enrolled = Array.isArray(e.enrolledStudents) ? e.enrolledStudents.map(x => x.toString()) : [];
+            return (instr && instr.toString() === uid.toString()) || enrolled.includes(uid.toString());
+          });
+
+          const transformed = filtered.map((e) => ({
             time: e.startTime || 'TBD',
             title: e.title,
             instructor: e.instructor && (e.instructor.fullName || e.instructor.name || e.instructor.email) || "TBD",
@@ -372,13 +324,16 @@ function Schedule() {
             _id: e._id
           }));
           setSelectedDateEvents(transformed);
+        } else {
+          // No user or no related events => empty
+          setSelectedDateEvents([]);
         }
       } catch (err) {
         console.warn('Failed to fetch events for today', err.message || err);
         setSelectedDateEvents([]);
       }
     })();
-  }, []);
+  }, [userProfile]);
 
   // Load user profile (if logged in) and per-user weekly stats
   useEffect(() => {
@@ -658,6 +613,184 @@ function Schedule() {
       setSelectedDateEvents([]);
     }
   }
+
+  // Fetch upcoming classes for the logged-in user and refresh periodically
+  const fetchUpcomingClasses = async () => {
+    try {
+      const api = await import('../api');
+      const res = await api.getUpcomingClasses(20, 1);
+      if (res && res.success) {
+        setUpcomingCount(res.upcomingCount || 0);
+        const mapped = (res.upcoming || []).map((e) => ({
+          title: e.title,
+          instructor: e.instructor && (e.instructor.fullName || e.instructor.email) || 'TBD',
+          date: e.date ? new Date(e.date).toLocaleDateString() : 'TBD',
+          time: `${e.startTime || 'TBD'} - ${e.endTime || 'TBD'}`,
+          location: e.location || 'Online',
+          students: (e.enrolledStudents || []).length + ' students',
+          type: e.type || 'Live Class',
+          status: e.status || 'Scheduled',
+          _id: e._id
+        }));
+        setUpcomingClasses(mapped);
+        
+        // Fetch reminders from backend notifications
+        await fetchRemindersFromBackend();
+        return;
+      }
+
+      if (Array.isArray(res)) {
+        setUpcomingCount(res.length || 0);
+        setUpcomingClasses(res.map((e) => ({
+          title: e.title,
+          instructor: e.instructor && (e.instructor.fullName || e.instructor.email) || 'TBD',
+          date: e.date ? new Date(e.date).toLocaleDateString() : 'TBD',
+          time: `${e.startTime || 'TBD'} - ${e.endTime || 'TBD'}`,
+          location: e.location || 'Online',
+          students: (e.enrolledStudents || []).length + ' students',
+          type: e.type || 'Live Class',
+          status: e.status || 'Scheduled',
+          _id: e._id
+        })));
+        
+        // Fetch reminders from backend notifications
+        await fetchRemindersFromBackend();
+        return;
+      }
+
+      setUpcomingCount(0);
+      setUpcomingClasses([]);
+    } catch (err) {
+      console.warn('Failed to fetch upcoming classes', err.message || err);
+      setUpcomingCount(0);
+      setUpcomingClasses([]);
+    }
+  };
+
+  // Fetch reminders from backend notifications
+  const fetchRemindersFromBackend = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('No token available to fetch reminders');
+        return;
+      }
+      
+      // Fetch notifications directly from API
+      const notificationsRes = await fetch('/api/notifications', {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (!notificationsRes.ok) {
+        console.warn('Failed to fetch notifications:', notificationsRes.status);
+        return;
+      }
+      
+      const notificationsData = await notificationsRes.json();
+      
+      if (notificationsData && Array.isArray(notificationsData.notifications || notificationsData)) {
+        const reminderTitles = new Set();
+        const notifications = notificationsData.notifications || notificationsData;
+        
+        // Filter and extract reminder event titles from all notifications
+        notifications.forEach(notif => {
+          try {
+            // Primary: Extract from route if it contains eventTitle parameter
+            if (notif.route && typeof notif.route === 'string') {
+              const match = notif.route.match(/eventTitle=([^&]*)/);
+              if (match && match[1]) {
+                const decodedTitle = decodeURIComponent(match[1]);
+                if (decodedTitle) {
+                  reminderTitles.add(decodedTitle);
+                  console.log('Added reminder title from route:', decodedTitle);
+                  return;
+                }
+              }
+            }
+            
+            // Fallback: Use notification title if it looks like an event title
+            if (notif.title && typeof notif.title === 'string' && notif.title.length > 0) {
+              reminderTitles.add(notif.title);
+              console.log('Added reminder title from notification title:', notif.title);
+            }
+          } catch (err) {
+            console.warn('Error processing notification:', notif, err);
+          }
+        });
+        
+        console.log('Final reminderTitles set:', Array.from(reminderTitles));
+        setRemindersSet(reminderTitles);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch reminders from backend', err.message || err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUpcomingClasses();
+    fetchRemindersFromBackend();
+    const interval = setInterval(() => {
+      fetchUpcomingClasses();
+      fetchRemindersFromBackend();
+    }, 10000);
+    const onFocus = () => {
+      fetchUpcomingClasses();
+      fetchRemindersFromBackend();
+    };
+    const onReminderSet = () => {
+      console.log('Reminder set event received, refreshing reminders');
+      fetchRemindersFromBackend();
+    };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('reminderSet', onReminderSet);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('reminderSet', onReminderSet);
+    };
+  }, []);
+
+  // Read query param when navigated from a notification and set highlight
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search || window.location.search);
+      const title = params.get('eventTitle');
+      if (title) {
+        // decode in case it's encoded
+        setHighlightEventTitle(decodeURIComponent(title));
+      }
+    } catch (err) {
+      console.warn('Failed to parse schedule query params', err);
+    }
+  }, [location.search]);
+
+  // When upcomingClasses load and we have a highlight target, scroll to and highlight it
+  useEffect(() => {
+    if (!highlightEventTitle || upcomingClasses.length === 0) return;
+
+    // Find element by data-title attribute (exact match or case-insensitive)
+    const exact = document.querySelector(`[data-title="${CSS.escape(highlightEventTitle)}"]`);
+    if (exact) {
+      exact.classList.add('highlighted-reminder');
+      exact.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setRemindersSet(prev => new Set([...Array.from(prev), highlightEventTitle]));
+      return;
+    }
+
+    // Fallback: case-insensitive match
+    const nodes = Array.from(document.querySelectorAll('[data-title]'));
+    for (const n of nodes) {
+      if ((n.getAttribute('data-title') || '').toLowerCase() === highlightEventTitle.toLowerCase()) {
+        n.classList.add('highlighted-reminder');
+        n.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setRemindersSet(prev => new Set([...Array.from(prev), n.getAttribute('data-title')]));
+        break;
+      }
+    }
+  }, [upcomingClasses, highlightEventTitle]);
  
   return (
     <AppLayout showGreeting={false}>
@@ -788,7 +921,7 @@ function Schedule() {
             </h5>
  
             {classes.map((classItem, idx) => (
-              <div key={idx} className="class-card">
+              <div key={idx} className={`class-card ${highlightEventTitle === classItem.title ? 'highlighted-reminder' : ''}`} data-title={classItem.title} id={`class-${classItem._id || idx}`}>
                 <div className="d-flex justify-content-between align-items-start mb-3">
                   <div>
                     <h6
@@ -831,9 +964,38 @@ function Schedule() {
                     ) : (
                       <button
                         className="btn btn-reminder btn-sm d-flex align-items-center gap-1"
-                        onClick={() => {
-                          alert(`Reminder set for ${classItem.title}`);
-                          setRemindersSet(prev => new Set([...prev, classItem.title]));
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem('token');
+                            if (!token) {
+                              alert('Please log in to set reminders');
+                              return;
+                            }
+                            
+                            const reminderRes = await fetch('/api/events/reminder', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`
+                              },
+                              body: JSON.stringify({
+                                eventTitle: classItem.title,
+                                eventDate: classItem.date,
+                                reminderType: 'upcoming_class'
+                              })
+                            });
+                            
+                            if (reminderRes.ok) {
+                              setRemindersSet(prev => new Set([...prev, classItem.title]));
+                              alert(`✅ Reminder set for ${classItem.title}`);
+                            } else {
+                              const errData = await reminderRes.json();
+                              alert(errData.message || 'Failed to set reminder');
+                            }
+                          } catch (err) {
+                            console.warn('Error setting reminder:', err);
+                            alert('Error setting reminder: ' + err.message);
+                          }
                         }}
                       >
                         <Bell size={16} />
@@ -989,7 +1151,14 @@ function Schedule() {
         <AddEventModal
           isOpen={isAddOpen}
           onClose={() => setIsAddOpen(false)}
-          onAdd={(evt) => setClasses((prev) => [...prev, evt])}
+          onAdd={(evt) => {
+            setClasses((prev) => [...prev, evt]);
+            // Add locally so creator sees the event immediately
+            setUpcomingClasses((prev) => [evt, ...prev]);
+            setUpcomingCount((c) => (c || 0) + 1);
+            // Refresh upcoming classes from server as well
+            fetchUpcomingClasses().catch(() => {});
+          }}
           userRole={userRole}
           presetDate={presetDate}
         />

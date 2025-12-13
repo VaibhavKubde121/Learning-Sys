@@ -97,6 +97,8 @@ const instructorRoutes = require('./routes/instructorRoutes');
 const studentRoutesFile = require('./routes/studentRoutes');
 const enrollmentRoutes = require('./routes/enrollmentRoutes');
 const parentRoutes = require('./routes/parentRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const scheduleRoutes = require('./routes/scheduleRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -116,6 +118,8 @@ app.use('/api/instructor', instructorRoutes);
 app.use('/api/student', studentRoutesFile);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/parents', parentRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/schedule', scheduleRoutes);
 
 // Welcome route
 app.get("/", (req, res) => {

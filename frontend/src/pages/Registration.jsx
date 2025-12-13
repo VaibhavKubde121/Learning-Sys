@@ -4,19 +4,33 @@ import "../assets/Registration.css";
 
 function Registration() {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    phone: "",
+    gender: "",
+    address: "",
     password: "",
     confirmPassword: "",
-    role: "student"
+    role: "student",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+
+    // PHONE VALIDATION (only digits, max 10)
+    if (name === "phone") {
+      const digits = value.replace(/\D/g, "");
+      if (digits.length > 10) return;
+      setFormData((prev) => ({ ...prev, phone: digits }));
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRegister = async (e) => {
@@ -31,16 +45,20 @@ function Registration() {
     }
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
       const response = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName: formData.fullName,
           email: formData.email,
+          phone: formData.phone,
+          gender: formData.gender,
+          address: formData.address,
           password: formData.password,
-          role: formData.role
-        })
+          role: formData.role,
+        }),
       });
 
       const data = await response.json();
@@ -51,12 +69,10 @@ function Registration() {
         return;
       }
 
-      // Store token and user info
       localStorage.setItem("token", data.user.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("role", data.user.role);
 
-      // Redirect to Sign In page
       navigate("/");
     } catch (err) {
       setError("Connection error. Please try again.");
@@ -82,11 +98,14 @@ function Registration() {
           </h1>
         </div>
       </div>
+
       <div className="login-right">
         <div className="login-card">
           <h2>Create Your Account</h2>
 
-          {error && <div style={{ color: "red", marginBottom: "10px" }}>{error}</div>}
+          {error && (
+            <div style={{ color: "red", marginBottom: "10px" }}>{error}</div>
+          )}
 
           <form onSubmit={handleRegister}>
             <input
@@ -98,6 +117,7 @@ function Registration() {
               onChange={handleChange}
               required
             />
+
             <input
               type="email"
               placeholder="Your Email"
@@ -107,6 +127,69 @@ function Registration() {
               onChange={handleChange}
               required
             />
+
+            {/* Phone Number */}
+            <input
+              type="text"
+              placeholder="Phone Number (10 digits)"
+              className="input-field"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              required
+            />
+
+            {/* Gender - Radio Buttons */}
+            <div style={{ marginBottom: "10px", textAlign: "left" }}>
+              <label style={{ fontWeight: "600" }}>Gender:</label>
+              <div>
+                <label>
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="male"
+                    checked={formData.gender === "male"}
+                    onChange={handleChange}
+                  />
+                  Male
+                </label>
+
+                <label style={{ marginLeft: "15px" }}>
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="female"
+                    checked={formData.gender === "female"}
+                    onChange={handleChange}
+                  />
+                  Female
+                </label>
+
+                <label style={{ marginLeft: "15px" }}>
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="other"
+                    checked={formData.gender === "other"}
+                    onChange={handleChange}
+                  />
+                  Other
+                </label>
+              </div>
+            </div>
+
+            {/* Address */}
+            <textarea
+              name="address"
+              placeholder="Address"
+              className="input-field"
+              style={{ height: "70px", resize: "none" }}
+              value={formData.address}
+              onChange={handleChange}
+              required
+            ></textarea>
+
+            {/* Role */}
             <select
               name="role"
               className="input-field"
@@ -118,6 +201,7 @@ function Registration() {
               <option value="admin">Admin</option>
               <option value="parent">Parent</option>
             </select>
+
             <input
               type="password"
               placeholder="Password (min 8 characters)"
@@ -127,6 +211,7 @@ function Registration() {
               onChange={handleChange}
               required
             />
+
             <input
               type="password"
               placeholder="Confirm Password"

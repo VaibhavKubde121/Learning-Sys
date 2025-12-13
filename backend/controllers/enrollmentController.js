@@ -28,9 +28,10 @@ exports.createEnrollment = async (req, res) => {
         });
 
         if (existingEnrollment) {
-            return res.status(400).json({ 
-                message: 'Already enrolled or payment pending for this course',
-                enrollmentId: existingEnrollment._id
+            return res.status(409).json({ 
+                message: 'You have already enrolled in this course',
+                enrollmentId: existingEnrollment._id,
+                alreadyEnrolled: true
             });
         }
 
@@ -203,6 +204,35 @@ exports.updateEnrollment = async (req, res) => {
         await enrollment.save();
 
         res.json(enrollment);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+// @desc    Unenroll user from all courses
+// @route   POST /api/enrollments/unenroll-all
+// @access  Private (Student)
+exports.unenrollAll = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const Enrollment = require('../models/enrollmentModel');
+        const Course = require('../models/courseModel');
+        const User = require('../models/userModel');
+
+        // Find user's enrollments
+        const enrollments = await Enrollment.find({ studentId: userId });
+
+        // Remove user from each course's enrolledStudents
+        const courseIds = enrollments.map(e => e.courseId);
+        await Course.updateMany({ _id: { $in: courseIds } }, { $pull: { enrolledStudents: userId } });
+
+        // Delete enrollments
+        await Enrollment.deleteMany({ studentId: userId });
+
+        // Clear enrolledCourses in user document
+        await User.findByIdAndUpdate(userId, { $set: { enrolledCourses: [] } });
+
+        res.json({ message: 'Unenrolled from all courses' });
     } catch (error) {
         res.status(400).json({ message: error.message });
     }

@@ -1,6 +1,9 @@
 const User = require('../models/userModel');
 const Institution = require('../models/institutionModel');
+const Notification = require('../models/notificationModel');
 const jwt = require('jsonwebtoken');
+const Schedule = require('../models/scheduleModel');
+const Event = require('../models/eventModel');
 const sendgrid = require('@sendgrid/mail');
 
 // Generate JWT Token
@@ -22,7 +25,7 @@ const generateToken = (userId, userRole) => {
 // @access  Public
 exports.registerUser = async (req, res) => {
     try {
-        const { fullName, email, password, role } = req.body;
+        const { fullName, email, password, role, phone, gender, bio, location, address, avatar } = req.body;
 
         // Check if user exists
         const userExists = await User.findOne({ email });
@@ -30,15 +33,22 @@ exports.registerUser = async (req, res) => {
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        // Create user with role
+        // Create user with provided profile details
         const userRole = role || 'student';
-        console.log('Creating user with role:', userRole);
-        const user = await User.create({
+        const userData = {
             fullName,
             email,
             password,
-            role: userRole
-        });
+            role: userRole,
+            phone: phone || undefined,
+            gender: gender || undefined,
+            bio: bio || undefined,
+            location: location || undefined,
+            address: address || undefined,
+            avatar: avatar || undefined,
+        };
+
+        const user = await User.create(userData);
 
         if (user) {
             // Send welcome email
@@ -53,7 +63,6 @@ exports.registerUser = async (req, res) => {
                 });
             }
 
-            console.log('User created with role:', user.role);
             const token = generateToken(user._id, userRole);
 
             res.status(201).json({
@@ -63,6 +72,12 @@ exports.registerUser = async (req, res) => {
                     fullName: user.fullName,
                     email: user.email,
                     role: user.role,
+                    phone: user.phone || null,
+                    gender: user.gender || null,
+                    bio: user.bio || null,
+                    location: user.location || null,
+                    address: user.address || null,
+                    avatar: user.avatar || null,
                     token: token,
                 },
             });
@@ -84,8 +99,16 @@ exports.loginUser = async (req, res) => {
 
         // Check if user exists and password matches
         if (user && (await user.matchPassword(password))) {
-            // Update last login
-            user.lastLogin = Date.now();
+            // Check if this is first login (before updating)
+            const isFirstLogin = user.firstLogin === true;
+            
+            // Update last login date
+            user.lastLoginDate = new Date();
+            
+            // Mark first login as completed
+            if (user.firstLogin) {
+                user.firstLogin = false;
+            }
             
             // Set role if not already set
             if (!user.role) {
@@ -97,12 +120,46 @@ exports.loginUser = async (req, res) => {
             // Use the generateToken function for consistency
             const token = generateToken(user._id, user.role);
 
+            // Get unread notification count for this user
+            const unreadCount = await Notification.countDocuments({
+                userId: user._id,
+                unread: true,
+            });
+
+            // Ensure the user has a schedule; if not, initialize with value 0
+            let schedule = await Schedule.findOne({ userId: user._id });
+            if (!schedule) {
+                schedule = new Schedule({ userId: user._id, value: 0, entries: [] });
+                await schedule.save();
+            }
+
+            // Compute upcoming classes count for the logged-in user
+            const now = new Date();
+            const upcomingCount = await Event.countDocuments({
+                enrolledStudents: user._id,
+                date: { $gte: now },
+                status: 'Scheduled',
+            });
+
             res.json({
                 _id: user._id,
                 fullName: user.fullName,
                 email: user.email,
+                phone: user.phone || null,
+                gender: user.gender || null,
+                avatar: user.avatar || null,
+                bio: user.bio || null,
+                location: user.location || null,
+                address: user.address || null,
                 role: user.role,
                 token: token,
+                isFirstLogin: isFirstLogin,
+                notificationCount: unreadCount,
+                schedule: {
+                    value: schedule.value,
+                    entries: schedule.entries || [],
+                },
+                upcomingClassesCount: upcomingCount || 0,
             });
         } else {
             res.status(401).json({ message: 'Invalid email or password' });
@@ -121,7 +178,21 @@ exports.getUserProfile = async (req, res) => {
             .select('-password');
 
         if (user) {
-            res.json(user);
+            res.json({
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                phone: user.phone || null,
+                gender: user.gender || null,
+                avatar: user.avatar || null,
+                bio: user.bio || null,
+                location: user.location || null,
+                address: user.address || null,
+                role: user.role,
+                isFirstLogin: user.firstLogin,
+                enrolledCourses: user.enrolledCourses || [],
+                achievements: user.achievements || [],
+            });
         } else {
             res.status(404).json({ message: 'User not found' });
         }
@@ -142,6 +213,9 @@ exports.updateUserProfile = async (req, res) => {
             user.email = req.body.email || user.email;
             user.phone = req.body.phone || user.phone;
             user.avatar = req.body.avatar || user.avatar;
+            user.gender = req.body.gender || user.gender;
+            user.bio = req.body.bio || user.bio;
+            user.location = req.body.location || user.location;
             
             if (req.body.address) {
                 user.address = {
@@ -161,6 +235,12 @@ exports.updateUserProfile = async (req, res) => {
                 fullName: updatedUser.fullName,
                 email: updatedUser.email,
                 role: updatedUser.role,
+                phone: updatedUser.phone || null,
+                gender: updatedUser.gender || null,
+                bio: updatedUser.bio || null,
+                location: updatedUser.location || null,
+                address: updatedUser.address || null,
+                avatar: updatedUser.avatar || null,
                 token: generateToken(updatedUser._id),
             });
         } else {

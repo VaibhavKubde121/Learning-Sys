@@ -52,6 +52,11 @@ function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data));
       localStorage.setItem("userRole", data.role);
       
+      // Store isFirstLogin in sessionStorage for this session
+      if (data.isFirstLogin !== undefined) {
+        sessionStorage.setItem("isFirstLogin", JSON.stringify(data.isFirstLogin));
+      }
+      
       // Redirect based on role
       if (data.role === 'admin' || data.role === 'sub-admin') {
         navigate("/admin/dashboard");

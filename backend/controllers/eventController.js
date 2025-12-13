@@ -156,6 +156,46 @@ const deleteEvent = asyncHandler(async (req, res) => {
     res.json({ message: 'Event removed' });
 });
 
+// @desc    Set reminder for upcoming class
+// @route   POST /api/events/reminder
+// @access  Private
+const setReminder = asyncHandler(async (req, res) => {
+    const { eventTitle, eventDate } = req.body;
+    const userId = req.user._id;
+
+    console.log('Setting reminder:', { eventTitle, eventDate, userId });
+
+    if (!eventTitle || !eventDate) {
+        res.status(400);
+        throw new Error('Event title and date are required');
+    }
+
+    // Create a notification for the user
+    const Notification = require('../models/notificationModel');
+    
+    // Create a reminder notification with route pointing to the specific event
+    const reminder = await Notification.create({
+        userId,
+        title: eventTitle,
+        message: `Reminder: ${eventTitle} is scheduled for ${eventDate}`,
+        type: 'reminder',
+        // Include the event title in the route so the Schedule page can highlight it
+        route: `/schedule?eventTitle=${encodeURIComponent(eventTitle)}`,
+        unread: true
+    });
+
+    console.log('Reminder created:', reminder._id);
+
+    res.status(200).json({
+        success: true,
+        message: `Reminder set for ${eventTitle}`,
+        reminder: {
+            _id: reminder._id,
+            reminded: true
+        }
+    });
+});
+
 module.exports = {
     createEvent,
     getEvents,
@@ -163,5 +203,6 @@ module.exports = {
     getUpcomingEvents,
     enrollInEvent,
     updateEvent,
-    deleteEvent
+    deleteEvent,
+    setReminder
 };

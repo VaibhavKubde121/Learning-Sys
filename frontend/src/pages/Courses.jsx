@@ -1529,6 +1529,9 @@ export default function Courses() {
   const [activeLessonVideo, setActiveLessonVideo] = useState(null);
   const [activeLessonTitle, setActiveLessonTitle] = useState("");
 
+  // Track total courses count for "View More" button visibility
+  const [totalCoursesCount, setTotalCoursesCount] = useState(0);
+
   // Instructor: Persisting the added instructors
   const [instructor] = useState(initialInstructor);
   const [otherInstructors, setOtherInstructors] = useLocalStorage(
@@ -1593,51 +1596,25 @@ export default function Courses() {
       }
 
       // Get courseId from URL params
-      const courseId = new URLSearchParams(window.location.search).get('id');
+      let courseId = new URLSearchParams(window.location.search).get('id');
+      
+      // If no courseId in URL, try to get from localStorage
+      if (!courseId) {
+        courseId = localStorage.getItem('currentCourseId');
+      }
 
-      // Validate courseId before calling backend
+      // Validate courseId before proceeding
       const isValidObjectId = (id) => !!id && /^[0-9a-fA-F]{24}$/.test(id);
       if (!isValidObjectId(courseId)) {
         alert('Unable to enroll: course identifier missing or invalid.');
         return;
       }
 
-      // Create pending enrollment
-      const response = await fetch('/api/enrollments/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ courseId })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        // If server indicates an existing enrollment (returns enrollmentId), reuse it and proceed to payment
-        if (error && error.enrollmentId) {
-          localStorage.setItem('currentCourseId', courseId);
-          localStorage.setItem('currentEnrollmentId', error.enrollmentId);
-          setEnrolled(true);
-          window.location.href = '/payment';
-          return;
-        }
-
-        alert(error.message || 'Failed to enroll in course');
-        return;
-      }
-
-      const data = await response.json();
-      
-      // Store enrollment and course IDs in localStorage for payment flow
+      // Store courseId in localStorage for subscription page
       localStorage.setItem('currentCourseId', courseId);
-      localStorage.setItem('currentEnrollmentId', data.enrollmentId);
       
-      // Mark as enrolled locally
-      setEnrolled(true);
-      
-      // Redirect to payment page
-      window.location.href = '/payment';
+      // Redirect directly to subscription page
+      window.location.href = '/subscription';
       
     } catch (error) {
       console.error('Enrollment error:', error);
@@ -1716,6 +1693,8 @@ export default function Courses() {
       try {
         const res = await api.getCourses();
         if (res && res.courses) {
+          // Store the count of available courses for "View More Courses" button visibility
+          setTotalCoursesCount(Array.isArray(res.courses) ? res.courses.length : 0);
           // Replace the student stat with live course count for visibility
           // This is minimal, non-intrusive integration to show backend data
           // If you want more, we can wire the whole curriculum to course data
@@ -1987,6 +1966,7 @@ export default function Courses() {
                 <button
                   className="btn btn-learn d-flex align-items-center gap-2"
                   onClick={handleEnrollClick}
+                  title="Click to enroll in this course"
                 >
                   <i className="bi bi-person-plus"></i> Enroll
                 </button>
@@ -2575,15 +2555,17 @@ export default function Courses() {
           )}
         </div>
 
-        {/* View More Button */}
-        <div className="mt-5 mb-5 d-flex justify-content-start">
-          <button
-            className="btn btn-learn d-flex align-items-center gap-2"
-            onClick={() => navigate("/subscription")}
-          >
-            view more courses
-          </button>
-        </div>
+        {/* View More Button - Only show if 2 or more courses are available */}
+        {totalCoursesCount >= 2 && (
+          <div className="mt-5 mb-5 d-flex justify-content-start">
+            <button
+              className="btn btn-learn d-flex align-items-center gap-2"
+              onClick={() => navigate("/courses")}
+            >
+              view more courses
+            </button>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

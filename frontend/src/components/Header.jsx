@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { IoLogOutOutline } from "react-icons/io5";
+import { IoLogOutOutline, IoPersonOutline } from "react-icons/io5";
 import notification from "../assets/notification.png";
 import profile from "../assets/profile.png";
  
@@ -78,6 +78,12 @@ function Header({ onToggleSidebar, children }) {
       replace: true,
       state: { message: "You have successfully logged out" }
     });
+  };
+
+  const goToProfile = () => {
+    // Close dropdown and navigate to profile page
+    setShowDropdown(false);
+    navigate("/profile");
   };
  
   const unreadCount = notifications.filter(n => n.unread).length;
@@ -237,37 +243,64 @@ function Header({ onToggleSidebar, children }) {
                 border: "1px solid #ddd",
                 borderRadius: "8px",
                 boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                padding: "10px 15px",
+                padding: "10px 0",
                 zIndex: 100,
                 minWidth: "200px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "10px",
+                gap: "0",
               }}
             >
-              <p style={{ margin: 0, fontWeight: "500", color: "#1A365D" }}></p>
- 
+              {/* Profile Button */}
+              <button
+                onClick={goToProfile}
+                style={{
+                  width: "100%",
+                  padding: "12px 20px",
+                  background: "transparent",
+                  color: "#1A365D",
+                  border: "none",
+                  borderBottom: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  gap: "10px",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f5f5f5"}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+              >
+                <IoPersonOutline size={18} />
+                Profile
+              </button>
+
               {/* Logout Button */}
               <button
                 onClick={handleLogout}
                 style={{
                   width: "100%",
-                  marginTop: "0px",
                   padding: "12px 20px",
-                  background: "#2B6CB0",
-                  color: "white",
+                  background: "transparent",
+                  color: "#EF4444",
                   border: "none",
                   cursor: "pointer",
-                  textAlign: "center",
-                  fontSize: "16px",
-                  borderRadius: "16px",
+                  textAlign: "left",
+                  fontSize: "14px",
+                  fontWeight: "500",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
+                  justifyContent: "flex-start",
                   gap: "10px",
+                  transition: "background-color 0.2s",
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#fff5f5"}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
               >
-                <IoLogOutOutline size={25} style={{ width: "25px", height: "20px" }} />
+                <IoLogOutOutline size={18} />
                 Logout
               </button>
             </div>
